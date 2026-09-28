@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<link rel="manifest" href="manifest.json">
+<title>Levizade İşletme</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f3f4f6;color:#111827;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{background:#111827;color:#fff;padding:18px 16px 16px;position:sticky;top:0;z-index:5}
+h1{font-size:22px;margin:0}.sub{opacity:.7;font-size:13px;margin-top:3px}
+main{max-width:720px;margin:auto;padding:14px 12px 90px}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.card{background:#fff;border-radius:16px;padding:15px;box-shadow:0 2px 10px #0000000b}.label{font-size:12px;color:#6b7280}.value{font-size:22px;font-weight:750;margin-top:5px}
+.net{grid-column:span 2}.net .value{font-size:28px}.green{color:#15803d}.red{color:#b91c1c}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}.btn{border:0;border-radius:14px;padding:14px;font-size:15px;font-weight:700;cursor:pointer}.income{background:#dcfce7;color:#166534}.expense{background:#fee2e2;color:#991b1b}.secondary{background:#e5e7eb;color:#111827}
+section{margin-top:16px}h2{font-size:16px;margin:0 0 9px}.row{display:flex;justify-content:space-between;gap:10px;padding:11px 0;border-bottom:1px solid #eee}.small{font-size:12px;color:#6b7280}.amount{font-weight:700}
+.modal{position:fixed;inset:0;background:#0008;display:none;align-items:flex-end;z-index:20}.sheet{background:#fff;border-radius:22px 22px 0 0;padding:18px;width:100%;max-width:720px;margin:auto;max-height:90vh;overflow:auto}
+label{display:block;font-size:12px;color:#6b7280;margin:10px 0 5px}input,select,textarea{width:100%;padding:12px;border:1px solid #d1d5db;border-radius:12px;font-size:16px;background:#fff}
+.form-actions{display:flex;gap:8px;margin-top:14px}.form-actions button{flex:1}.hidden{display:none}.empty{color:#6b7280;text-align:center;padding:20px}
+footer{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #e5e7eb;padding:9px;display:flex;justify-content:center;z-index:10}
+.status{font-size:12px;padding:6px 10px;border-radius:99px;background:#fef3c7;color:#92400e}.ok{background:#dcfce7;color:#166534}
+</style>
+</head>
+<body>
+<header><h1>Levizade İşletme</h1><div class="sub" id="today"></div></header>
+<main>
+<div id="status" class="status">Bağlanıyor…</div>
+<div class="grid" style="margin-top:10px">
+<div class="card"><div class="label">Bugünkü Ciro</div><div id="revenue" class="value">₺0</div></div>
+<div class="card"><div class="label">Bugünkü Gider</div><div id="expense" class="value red">₺0</div></div>
+<div class="card net"><div class="label">Bugünkü Net</div><div id="net" class="value green">₺0</div></div>
+<div class="card"><div class="label">Nakit Gelir</div><div id="cash" class="value">₺0</div></div>
+<div class="card"><div class="label">POS</div><div id="pos" class="value">₺0</div></div>
+<div class="card"><div class="label">Banka</div><div id="bank" class="value">₺0</div></div>
+<div class="card"><div class="label">Yemek Kartı</div><div id="meal" class="value">₺0</div></div>
+</div>
+
+<div class="actions">
+<button class="btn income" onclick="openForm('income')">＋ Gelir Ekle</button>
+<button class="btn expense" onclick="openForm('expense')">− Gider Ekle</button>
+</div>
+<button class="btn secondary" style="width:100%" onclick="openDebt()">＋ Borç / Ödeme Ekle</button>
+
+<section><h2>Bugünkü Hareketler</h2><div id="movements" class="card"><div class="empty">Kayıt yok.</div></div></section>
+<section><h2>Ödenmemiş Borçlar</h2><div id="debts" class="card"><div class="empty">Kayıt yok.</div></div></section>
+</main>
+
+<footer><button class="btn secondary" onclick="loadData()">↻ Yenile</button></footer>
+
+<div id="modal" class="modal" onclick="if(event.target===this)closeModal()"><div class="sheet">
+<h2 id="modalTitle">Gelir Ekle</h2>
+<form id="txForm">
+<input type="hidden" id="type">
+<label>Tutar (TL)</label><input id="amount" type="number" min="0.01" step="0.01" required>
+<label>Kategori</label><select id="category"></select>
+<label>Ödeme / Para Türü</label>
+<select id="method"><option value="cash">Nakit</option><option value="pos">POS</option><option value="meal_card">Yemek Kartı</option><option value="bank">Banka / Havale</option></select>
+<label>Açıklama</label><textarea id="description" rows="2"></textarea>
+<div class="form-actions"><button type="button" class="btn secondary" onclick="closeModal()">Vazgeç</button><button class="btn income" id="saveBtn">Kaydet</button></div>
+</form>
+
+<form id="debtForm" class="hidden">
+<label>Alacaklı / Firma</label><input id="creditor" required>
+<label>Tutar (TL)</label><input id="debtAmount" type="number" min="0.01" step="0.01" required>
+<label>Vade</label><input id="dueDate" type="date">
+<label>Açıklama</label><textarea id="debtDesc" rows="2"></textarea>
+<div class="form-actions"><button type="button" class="btn secondary" onclick="closeModal()">Vazgeç</button><button class="btn income">Kaydet</button></div>
+</form>
+</div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL="https://jbhnhgevtyfpvkyyndmc.supabase.co";
+const SUPABASE_KEY="sb_publishable_zqsx6iWC3WD5uXYvlucJUQ_GHj7gEbM";
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let user=null;
+const incomeCats=["Satış","Fabrika","Yemek Kartı","Banka/Havale","Diğer"];
+const expenseCats=["Manav","Personel","Malzeme","Kira","Elektrik/Su/Doğalgaz","Kömür","Vergi/SGK","Ulaşım/Akaryakıt","Diğer"];
+
+const money=n=>new Intl.NumberFormat("tr-TR",{style:"currency",currency:"TRY",maximumFractionDigits:0}).format(n||0);
+const today=()=>new Date().toLocaleDateString("sv-SE",{timeZone:"Europe/Istanbul"});
+document.getElementById("today").textContent=new Date().toLocaleDateString("tr-TR",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+
+async function init(){
+ let s=await sb.auth.getSession();
+ if(!s.data.session){
+   const r=await sb.auth.signInAnonymously();
+   if(r.error){status("Giriş gerekli: Supabase'de anonim giriş açılmalı.");return;}
+   s=await sb.auth.getSession();
+ }
+ user=s.data.session?.user;
+ if(user){status("Bağlı ✓",true);loadData();}
+}
+function status(t,ok=false){const e=document.getElementById("status");e.textContent=t;e.className="status"+(ok?" ok":"");}
+
+function openForm(type){
+ document.getElementById("modal").style.display="flex";
+ document.getElementById("txForm").classList.remove("hidden");
+ document.getElementById("debtForm").classList.add("hidden");
+ document.getElementById("type").value=type;
+ document.getElementById("modalTitle").textContent=type==="income"?"Gelir Ekle":"Gider Ekle";
+ const cats=type==="income"?incomeCats:expenseCats;
+ document.getElementById("category").innerHTML=cats.map(x=>`<option>${x}</option>`).join("");
+ document.getElementById("saveBtn").className="btn "+(type==="income"?"income":"expense");
+}
+function openDebt(){
+ document.getElementById("modal").style.display="flex";
+ document.getElementById("txForm").classList.add("hidden");
+ document.getElementById("debtForm").classList.remove("hidden");
+ document.getElementById("modalTitle").textContent="Borç / Ödeme Ekle";
+}
+function closeModal(){document.getElementById("modal").style.display="none";}
+
+document.getElementById("txForm").onsubmit=async e=>{
+ e.preventDefault(); if(!user)return;
+ const payload={user_id:user.id,transaction_type:document.getElementById("type").value,category:document.getElementById("category").value,payment_method:document.getElementById("method").value,amount:Number(document.getElementById("amount").value),description:document.getElementById("description").value||null,transaction_date:today()};
+ const r=await sb.from("financial_transactions").insert(payload);
+ if(r.error){alert(r.error.message);return;} closeModal();e.target.reset();loadData();
+};
+document.getElementById("debtForm").onsubmit=async e=>{
+ e.preventDefault();if(!user)return;
+ const r=await sb.from("debts").insert({user_id:user.id,creditor:creditor.value,amount:Number(debtAmount.value),due_date:dueDate.value||null,description:debtDesc.value||null});
+ if(r.error){alert(r.error.message);return;}closeModal();e.target.reset();loadData();
+};
+
+async function loadData(){
+ if(!user)return;
+ const {data:tx,error}=await sb.from("financial_transactions").select("*").eq("user_id",user.id).eq("transaction_date",today()).order("created_at",{ascending:false});
+ if(error){status("Veri okunamadı");return;}
+ let rev=0,exp=0,cash=0,pos=0,bank=0,meal=0;
+ tx.forEach(x=>{const v=Number(x.amount);if(x.transaction_type==="income"){rev+=v;if(x.payment_method==="cash")cash+=v;if(x.payment_method==="pos")pos+=v;if(x.payment_method==="bank")bank+=v;if(x.payment_method==="meal_card")meal+=v}else exp+=v;});
+ revenue.textContent=money(rev);expense.textContent=money(exp);net.textContent=money(rev-exp);document.getElementById("cash").textContent=money(cash);document.getElementById("pos").textContent=money(pos);document.getElementById("bank").textContent=money(bank);document.getElementById("meal").textContent=money(meal);
+ movements.innerHTML=tx.length?tx.map(x=>`<div class="row"><div><b>${x.transaction_type==="income"?"Gelir":"Gider"} · ${x.category}</b><div class="small">${x.payment_method} ${x.description?"· "+x.description:""}</div></div><div class="amount ${x.transaction_type==="income"?"green":"red"}">${x.transaction_type==="income"?"+":"-"}${money(x.amount)}</div></div>`).join(""):'<div class="empty">Bugün kayıt yok.</div>';
+ const d=await sb.from("debts").select("*").eq("user_id",user.id).eq("status","unpaid").order("due_date",{ascending:true});
+ debts.innerHTML=d.data?.length?d.data.map(x=>`<div class="row"><div><b>${x.creditor}</b><div class="small">${x.due_date||"Vade yok"}</div></div><div class="amount red">${money(x.amount)}</div></div>`).join(""):'<div class="empty">Ödenmemiş borç yok.</div>';
+}
+init();
+</script>
+</body>
+</html>
